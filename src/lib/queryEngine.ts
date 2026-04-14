@@ -250,7 +250,7 @@ export function cmdSearch(schema: PrismaSchema, keyword: string): QueryResult {
 // ─────────────────────────────────────────────────────────────────────────────
 // #5 — prisma-query models --list
 // ─────────────────────────────────────────────────────────────────────────────
-export function cmdModelsList(schema: PrismaSchema): QueryResult {
+export function cmdModelsList(schema: PrismaSchema, detail: boolean = false): QueryResult {
   const lines: OutputLine[] = [];
   const total = schema.models.length;
 
@@ -265,18 +265,22 @@ export function cmdModelsList(schema: PrismaSchema): QueryResult {
   const maxName = Math.max(...schema.models.map(m => m.name.length), 0);
 
   for (const model of schema.models) {
-    const related = getRelatedModelNames(model, schema);
-    const relStr = related.length > 0 ? `→ ${related.join(', ')}` : '';
-    const fieldTag = `(${model.fields.length} fields)`;
+    if (detail) {
+      const related = getRelatedModelNames(model, schema);
+      const relStr = related.length > 0 ? `→ ${related.join(', ')}` : '';
+      const fieldTag = `(${model.fields.length} fields)`;
 
-    lines.push(row([
-      model.name.padEnd(maxName + 2),
-      fieldTag.padEnd(14),
-      relStr,
-    ]));
+      lines.push(row([
+        model.name.padEnd(maxName + 2),
+        fieldTag.padEnd(14),
+        relStr,
+      ]));
+    } else {
+      lines.push(row([model.name]));
+    }
   }
 
-  if (schema.enums.length > 0) {
+  if (detail && schema.enums.length > 0) {
     lines.push(blank());
     lines.push(heading(`🏷  共 ${schema.enums.length} 个 Enum：`));
     lines.push(blank());
@@ -354,8 +358,10 @@ export function dispatch(schema: PrismaSchema, input: string): QueryResult {
     case 'search':
       return cmdSearch(schema, args[0] ?? '');
 
-    case 'models':
-      return cmdModelsList(schema);
+    case 'models': {
+      const detail = flags['detail'] === true;
+      return cmdModelsList(schema, detail);
+    }
 
     case 'help':
     case '':
@@ -396,7 +402,7 @@ export function helpResult(): QueryResult {
       { kind: 'info', text: '  field   <Model> <Field>         查看字段详细信息' },
       { kind: 'info', text: '  field   --attr <@attribute>     查找所有含指定属性的字段' },
       { kind: 'info', text: '  search  <keyword>               全局搜索 Model/字段/类型' },
-      { kind: 'info', text: '  models  --list                  列出所有 Model 概览' },
+      { kind: 'info', text: '  models  --list [--detail]       列出所有 Model 概览（--detail 显示字段数/关联/Enum）' },
       { kind: 'info', text: '  cls / clear                     清空终端屏幕' },
       blank(),
       { kind: 'comment', text: '// 示例：' },
@@ -408,6 +414,7 @@ export function helpResult(): QueryResult {
       { kind: 'code',    text: '  field --attr @relation' },
       { kind: 'code',    text: '  search userId' },
       { kind: 'code',    text: '  models --list' },
+      { kind: 'code',    text: '  models --list --detail' },
     ],
   };
 }
