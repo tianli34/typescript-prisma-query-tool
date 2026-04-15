@@ -224,3 +224,8 @@ export function formatModel(model: PrismaModel): string {
 
   return `model ${model.name} {\n${bodyLines.join('\n')}\n}`;
 }
+
+export function formatEnum(prismaEnum: PrismaEnum): string {
+  const bodyLines = prismaEnum.values.map(v => `  ${v}`);
+  return `enum ${prismaEnum.name} {\n${bodyLines.join('\n')}\n}`;
+}

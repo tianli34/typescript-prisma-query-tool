@@ -5,7 +5,9 @@
 import {
   PrismaSchema,
   PrismaModel,
+  PrismaEnum,
   formatModel,
+  formatEnum,
   getRelatedModelNames,
 } from './prismaParser';
 
@@ -37,6 +39,12 @@ function modelCodeLines(model: PrismaModel): OutputLine[] {
     .map(l => code(l));
 }
 
+function enumCodeLines(prismaEnum: PrismaEnum): OutputLine[] {
+  return formatEnum(prismaEnum)
+    .split('\n')
+    .map(l => code(l));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // #1 — prisma-query model <Name...>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +65,31 @@ export function cmdModel(schema: PrismaSchema, names: string[]): QueryResult {
     if (!first) lines.push(blank());
     first = false;
     modelCodeLines(model).forEach(l => lines.push(l));
+  }
+
+  return { lines };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #1b — prisma-query enum <Name...>
+// ─────────────────────────────────────────────────────────────────────────────
+export function cmdEnum(schema: PrismaSchema, names: string[]): QueryResult {
+  if (names.length === 0) {
+    return { lines: [error('Usage: enum <EnumName> [EnumName2 ...]')] };
+  }
+
+  const lines: OutputLine[] = [];
+  let first = true;
+
+  for (const name of names) {
+    const prismaEnum = schema.enums.find(e => e.name.toLowerCase() === name.toLowerCase());
+    if (!prismaEnum) {
+      lines.push(error(`Enum "${name}" not found`));
+      continue;
+    }
+    if (!first) lines.push(blank());
+    first = false;
+    enumCodeLines(prismaEnum).forEach(l => lines.push(l));
   }
 
   return { lines };
@@ -343,6 +376,9 @@ export function dispatch(schema: PrismaSchema, input: string): QueryResult {
     case 'model':
       return cmdModel(schema, args);
 
+    case 'enum':
+      return cmdEnum(schema, args);
+
     case 'context': {
       const depth = flags['depth'] ? parseInt(String(flags['depth']), 10) : 1;
       return cmdContext(schema, args[0] ?? '', isNaN(depth) ? 1 : depth);
@@ -398,6 +434,7 @@ export function helpResult(): QueryResult {
       heading('📖 prisma-query 命令帮助'),
       blank(),
       { kind: 'info', text: '  model   <Name...>               查看单个或多个 Model 定义' },
+      { kind: 'info', text: '  enum    <Name...>               查看单个或多个 Enum 定义' },
       { kind: 'info', text: '  context <Name> [--depth <n>]    查看 Model 及其关联上下文' },
       { kind: 'info', text: '  field   <Model> <Field>         查看字段详细信息' },
       { kind: 'info', text: '  field   --attr <@attribute>     查找所有含指定属性的字段' },
@@ -408,6 +445,7 @@ export function helpResult(): QueryResult {
       { kind: 'comment', text: '// 示例：' },
       { kind: 'code',    text: '  model User' },
       { kind: 'code',    text: '  model User Post Comment' },
+      { kind: 'code',    text: '  enum Role' },
       { kind: 'code',    text: '  context Post --depth 2' },
       { kind: 'code',    text: '  field User email' },
       { kind: 'code',    text: '  field --attr @unique' },
